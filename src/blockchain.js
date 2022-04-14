@@ -76,8 +76,13 @@ class Blockchain {
             block.hash = SHA256(JSON.stringify(block)).toString();
             block.time = new Date().getTime().toString().slice(0,-3);
             self.chain.push(block);
-            this.validateChain();
-            resolve(block);
+            
+            const validationResult = await self.validateChain();
+            if(validationResult && validationResult.length > 0){
+                reject(validationResult);
+            } else {
+                resolve(block);
+            }
         });
     }
 
@@ -119,7 +124,9 @@ class Blockchain {
             const currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
             const timeElapsed = currentTime - timeStampFromMessage;
 
-            if(timeElapsed < 300000){
+            const timeElapsedInMinutes = (timeElapsed / 1000) / 60;
+
+            if(timeElapsedInMinutes < 5){
                 const messageVerified = bitcoinMessage.verify(message, address, signature);
                 const data = {address, star};
 
@@ -161,7 +168,7 @@ class Blockchain {
     getBlockByHeight(height) {
         let self = this;
         return new Promise((resolve, reject) => {
-            let block = self.chain.filter(p => p.height === height)[0];
+            let block = self.chain.find(p => p.height === height);
             if(block){
                 resolve(block);
             } else {
@@ -208,7 +215,7 @@ class Blockchain {
                 resolve(errorLog);
             };
             for(let i=0; i<self.chain.length; i++){
-                let error = self.chain[i].validate();
+                let error = await self.chain[i].validate();
                 if(error){
                     errorLog.push(error);
                 }
